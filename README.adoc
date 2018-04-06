@@ -5,6 +5,14 @@ See also https://github.com/ttlappalainen/NMEA2000[NMEA2000] library.
 
 To use this library, you will also need NMEA2000 library.
 
+The library defines as default Tx pin to GPIO 16 and Rx pint to GPIO 4. You can 
+change these with defines:
+
+  #define ESP32_CAN_TX_PIN GPIO_NUM_16
+  #define ESP32_CAN_RX_PIN GPIO_NUM_4
+
+before including NMEA2000_CAN.h or NMEA2000_esp32.h
+
 == Thanks ==
 
 Thanks to Thomas Barth, barth-dev.de for his implementation of
