@@ -1,7 +1,7 @@
 /*
 NMEA2000_esp32.cpp
 
-Copyright (c) 2015-2018 Timo Lappalainen, Kave Oy, www.kave.fi
+Copyright (c) 2015-2019 Timo Lappalainen, Kave Oy, www.kave.fi
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -24,12 +24,8 @@ Inherited NMEA2000 object for ESP32 modules. See also NMEA2000 library.
 
 Thanks to Thomas Barth, barth-dev.de, who has written ESP32 CAN code. To avoid extra
 libraries, I implemented his code directly to the NMEA2000_esp32 to avoid extra
-can.h library, which may cause even naming problem. 
+can.h library, which may cause even naming problem.
 */
-
-// Needed when not building with Arduino
-#include <cstring>
-#include <cmath>
 
 #include "soc/dport_reg.h"
 #include "NMEA2000_esp32.h"
@@ -40,8 +36,8 @@ tNMEA2000_esp32 *pNMEA2000_esp32=0;
 void ESP32Can1Interrupt(void *);
 
 //*****************************************************************************
-tNMEA2000_esp32::tNMEA2000_esp32(gpio_num_t _TxPin,  gpio_num_t _RxPin) : 
-    tNMEA2000(), IsOpen(false), 
+tNMEA2000_esp32::tNMEA2000_esp32(gpio_num_t _TxPin,  gpio_num_t _RxPin) :
+    tNMEA2000(), IsOpen(false),
     speed(CAN_SPEED_250KBPS), TxPin(_TxPin), RxPin(_RxPin),
     RxQueue(NULL), TxQueue(NULL) {
 }
@@ -49,12 +45,12 @@ tNMEA2000_esp32::tNMEA2000_esp32(gpio_num_t _TxPin,  gpio_num_t _RxPin) :
 //*****************************************************************************
 bool tNMEA2000_esp32::CANSendFrame(unsigned long id, unsigned char len, const unsigned char *buf, bool /*wait_sent*/) {
   if ( uxQueueSpacesAvailable(TxQueue)==0 ) return false; // can not send to queue
-  
+
   tCANFrame frame;
   frame.id=id;
   frame.len=len;
   memcpy(frame.buf,buf,len);
-  
+
   xQueueSendToBack(TxQueue,&frame,0);  // Add frame to queue
   if ( MODULE_CAN->SR.B.TBS==0 ) return true; // Currently sending, ISR takes care of sending
 
@@ -62,7 +58,7 @@ bool tNMEA2000_esp32::CANSendFrame(unsigned long id, unsigned char len, const un
     xQueueReceive(TxQueue,&frame,0);
     CAN_send_frame(frame);
   }
-  
+
   return true;
 }
 
@@ -87,7 +83,7 @@ bool tNMEA2000_esp32::CANOpen() {
     pNMEA2000_esp32=this;
     IsOpen=true;
     CAN_init();
-    
+
     CanInUse=IsOpen;
 
     return IsOpen;
@@ -97,7 +93,7 @@ bool tNMEA2000_esp32::CANOpen() {
 bool tNMEA2000_esp32::CANGetFrame(unsigned long &id, unsigned char &len, unsigned char *buf) {
   bool HasFrame=false;
   tCANFrame frame;
-  
+
     //receive next CAN frame from queue
     if ( xQueueReceive(RxQueue,&frame, 0)==pdTRUE ) {
       HasFrame=true;
@@ -118,11 +114,6 @@ void tNMEA2000_esp32::CAN_init() {
     //enable module
     DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
     DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
-
-    //configure TX pin
-    gpio_set_direction(TxPin,GPIO_MODE_OUTPUT);
-    gpio_matrix_out(TxPin,CAN_TX_IDX,0,0);
-    gpio_pad_select_gpio(TxPin);
 
     //configure RX pin
 	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
@@ -189,6 +180,14 @@ void tNMEA2000_esp32::CAN_init() {
     //install CAN ISR
     esp_intr_alloc(ETS_CAN_INTR_SOURCE,0,ESP32Can1Interrupt,NULL,NULL);
 
+    //configure TX pin
+    // We do late configure, since some initialization above caused CAN Tx flash
+    // shortly causing one error frame on startup. By setting CAN pin here
+    // it works right.
+    gpio_set_direction(TxPin,GPIO_MODE_OUTPUT);
+    gpio_matrix_out(TxPin,CAN_TX_IDX,0,0);
+    gpio_pad_select_gpio(TxPin);
+
     //Showtime. Release Reset Mode.
     MODULE_CAN->MOD.B.RM = 0;
 }
@@ -223,7 +222,7 @@ void tNMEA2000_esp32::CAN_read_frame() {
 //*****************************************************************************
 void tNMEA2000_esp32::CAN_send_frame(tCANFrame &frame) {
   CAN_FIR_t FIR;
-  
+
   FIR.U=0;
   FIR.B.DLC=frame.len;
   FIR.B.FF=CAN_frame_ext;

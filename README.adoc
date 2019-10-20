@@ -20,11 +20,14 @@ ESP32 CAN driver. Instead of using his driver as external driver
 I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 
 == Changes ==
+20.10.2019
+- Fixed pin definition at startup to avoid error frame.
+
 06.04.2014 Initial commit.
 
 == License ==
 
-2015-2018 Copyright (c) Kave Oy, www.kave.fi  All right reserved.
+2015-2019 Copyright (c) Kave Oy, www.kave.fi  All right reserved.
 
 Author: Timo Lappalainen
 
