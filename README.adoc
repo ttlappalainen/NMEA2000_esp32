@@ -20,6 +20,10 @@ ESP32 CAN driver. Instead of using his driver as external driver
 I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 
 == Changes ==
+05.11.2019
+- Fixed can frame buffer handling. After ESP soft reset can controller could have false data on
+  frame length and cause writing outside of frame buffer.
+
 20.10.2019
 - Fixed pin definition at startup to avoid error frame.
 

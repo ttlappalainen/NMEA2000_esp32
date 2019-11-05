@@ -48,7 +48,7 @@ bool tNMEA2000_esp32::CANSendFrame(unsigned long id, unsigned char len, const un
 
   tCANFrame frame;
   frame.id=id;
-  frame.len=len;
+  frame.len=len>8?8:len;
   memcpy(frame.buf,buf,len);
 
   xQueueSendToBack(TxQueue,&frame,0);  // Add frame to queue
@@ -199,7 +199,7 @@ void tNMEA2000_esp32::CAN_read_frame() {
 
 	//get FIR
 	FIR.U=MODULE_CAN->MBX_CTRL.FCTRL.FIR.U;
-  frame.len=FIR.B.DLC;
+  frame.len=FIR.B.DLC>8?8:FIR.B.DLC;
 
   // Handle only extended frames
   if (FIR.B.FF==CAN_frame_ext) {  //extended frame
@@ -207,7 +207,7 @@ void tNMEA2000_esp32::CAN_read_frame() {
     frame.id = _CAN_GET_EXT_ID;
 
     //deep copy data bytes
-    for( size_t i=0; i<FIR.B.DLC; i++ ) {
+    for( size_t i=0; i<frame.len; i++ ) {
       frame.buf[i]=MODULE_CAN->MBX_CTRL.FCTRL.TX_RX.EXT.data[i];
     }
 
@@ -224,7 +224,7 @@ void tNMEA2000_esp32::CAN_send_frame(tCANFrame &frame) {
   CAN_FIR_t FIR;
 
   FIR.U=0;
-  FIR.B.DLC=frame.len;
+  FIR.B.DLC=frame.len>8?8:frame.len;
   FIR.B.FF=CAN_frame_ext;
 
 	//copy frame information record
@@ -234,7 +234,7 @@ void tNMEA2000_esp32::CAN_send_frame(tCANFrame &frame) {
   _CAN_SET_EXT_ID(frame.id);
 
   // Copy the frame data to the hardware
-  for ( size_t i=0; i<FIR.B.DLC; i++) {
+  for ( size_t i=0; i<frame.len; i++) {
     MODULE_CAN->MBX_CTRL.FCTRL.TX_RX.EXT.data[i]=frame.buf[i];
   }
 
