@@ -27,6 +27,9 @@ libraries, I implemented his code directly to the NMEA2000_esp32 to avoid extra
 can.h library, which may cause even naming problem.
 */
 
+#include "driver/sdmmc_host.h"
+#include "driver/sdspi_host.h"
+
 #include "soc/dport_reg.h"
 #include "NMEA2000_esp32.h"
 
@@ -111,9 +114,25 @@ void tNMEA2000_esp32::CAN_init() {
 	//Time quantum
 	double __tq;
 
+
+    /* Reset the ESP32 CAN controller
+
+      This library uses an old ESP32 CAN driver and that driver written before
+      the ESP-IDF supported the ESP32 CAN controller. The driver assumes that
+      the CAN hardware is in a power up state. A soft reset of the ESP32 leaves
+      it's CAN controller in an undefined state so a reset is needed. Without
+      this, after a few soft resets, the CAN controller goes into an overflow
+      state and stops working.
+
+      After this call, the CAN controller is in the same state as it would
+      be in after a power down reset.
+    */
+  periph_module_reset(PERIPH_CAN_MODULE);
+
+
     //enable module
-    DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
-    DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
+  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
+  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
 
     //configure RX pin
 	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
