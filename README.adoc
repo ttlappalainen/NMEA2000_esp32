@@ -20,6 +20,11 @@ ESP32 CAN driver. Instead of using his driver as external driver
 I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 
 == Changes ==
+15.11.2020
+- Added CAN reset to CAN_init
+- Fix for ESP32 rev>=2. New chips uses Baud Rate Prescaler Divider (BRP_DIV) bit, which was set on
+  interrupt vector causing invalid baud rate.
+
 05.11.2019
 - Fixed can frame buffer handling. After ESP soft reset can controller could have false data on
   frame length and cause writing outside of frame buffer.
@@ -31,9 +36,11 @@ I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 
 == License ==
 
-2015-2019 Copyright (c) Kave Oy, www.kave.fi  All right reserved.
+2015-2020 Copyright (c) Kave Oy, www.kave.fi  All right reserved.
 
 Author: Timo Lappalainen
+
+MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in

@@ -1,7 +1,7 @@
 /*
 NMEA2000_esp32.cpp
 
-Copyright (c) 2015-2019 Timo Lappalainen, Kave Oy, www.kave.fi
+Copyright (c) 2015-2020 Timo Lappalainen, Kave Oy, www.kave.fi
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +26,8 @@ Thanks to Thomas Barth, barth-dev.de, who has written ESP32 CAN code. To avoid e
 libraries, I implemented his code directly to the NMEA2000_esp32 to avoid extra
 can.h library, which may cause even naming problem.
 */
+
+#include "driver/periph_ctrl.h"
 
 #include "soc/dport_reg.h"
 #include "NMEA2000_esp32.h"
@@ -111,9 +113,15 @@ void tNMEA2000_esp32::CAN_init() {
 	//Time quantum
 	double __tq;
 
+
+  // A soft reset of the ESP32 leaves it's CAN controller in an undefined state so a reset is needed.
+  // Reset CAN controller to same state as it would be in after a power down reset.
+  periph_module_reset(PERIPH_CAN_MODULE);
+
+
     //enable module
-    DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
-    DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
+  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
+  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
 
     //configure RX pin
 	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
@@ -154,7 +162,7 @@ void tNMEA2000_esp32::CAN_init() {
     MODULE_CAN->BTR1.B.SAM	=0x1;
 
     //enable all interrupts
-    MODULE_CAN->IER.U = 0xff;
+    MODULE_CAN->IER.U = 0xef;  // bit 0x10 contains Baud Rate Prescaler Divider (BRP_DIV) bit
 
     //no acceptance filtering, as we want to fetch all messages
     MODULE_CAN->MBX_CTRL.ACC.CODE[0] = 0;
