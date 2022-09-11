@@ -32,6 +32,14 @@ can.h library, which may cause even naming problem.
 #include "soc/dport_reg.h"
 #include "NMEA2000_esp32.h"
 
+
+#ifdef ESP_PLATFORM
+  #include <compat.h>
+#else
+  #include <math.h>
+#endif
+
+
 bool tNMEA2000_esp32::CanInUse=false;
 tNMEA2000_esp32 *pNMEA2000_esp32=0;
 
@@ -63,6 +71,9 @@ bool tNMEA2000_esp32::CANSendFrame(unsigned long id, unsigned char len, const un
 
   return true;
 }
+
+
+
 
 //*****************************************************************************
 void tNMEA2000_esp32::InitCANFrameBuffers() {
@@ -152,6 +163,8 @@ void tNMEA2000_esp32::CAN_init() {
 			MODULE_CAN->BTR1.B.TSEG1	=0xc;
 			__tq = ((float)1000/speed) / 16;
 	}
+
+
 
 	//set baud rate prescaler
 	MODULE_CAN->BTR0.B.BRP=(uint8_t)round((((APB_CLK_FREQ * __tq) / 2) - 1)/1000000)-1;
