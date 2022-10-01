@@ -32,13 +32,9 @@ can.h library, which may cause even naming problem.
 #include "soc/dport_reg.h"
 #include "NMEA2000_esp32.h"
 
-
-#ifdef ESP_PLATFORM
-  #include <compat.h>
-#else
-  #include <math.h>
+#if !defined(round)
+extern double round(double val);
 #endif
-
 
 bool tNMEA2000_esp32::CanInUse=false;
 tNMEA2000_esp32 *pNMEA2000_esp32=0;
