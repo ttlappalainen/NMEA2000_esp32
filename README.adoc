@@ -21,7 +21,7 @@ I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 
 == Changes ==
 04.10.2022
-- Add ESP-IDF supportES
+- Add ESP-IDF support
 
 15.11.2020
 - Added CAN reset to CAN_init
