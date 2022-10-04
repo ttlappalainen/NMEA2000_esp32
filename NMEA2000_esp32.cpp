@@ -32,6 +32,10 @@ can.h library, which may cause even naming problem.
 #include "soc/dport_reg.h"
 #include "NMEA2000_esp32.h"
 
+#if !defined(round)
+#include <math.h>
+#endif
+
 bool tNMEA2000_esp32::CanInUse=false;
 tNMEA2000_esp32 *pNMEA2000_esp32=0;
 
