@@ -20,6 +20,9 @@ ESP32 CAN driver. Instead of using his driver as external driver
 I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 
 == Changes ==
+04.10.2022
+- Add ESP-IDF supportES
+
 15.11.2020
 - Added CAN reset to CAN_init
 - Fix for ESP32 rev>=2. New chips uses Baud Rate Prescaler Divider (BRP_DIV) bit, which was set on
@@ -36,7 +39,8 @@ I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 
 == License ==
 
-2015-2020 Copyright (c) Kave Oy, www.kave.fi  All right reserved.
+
+2015-2022 Copyright (c) Kave Oy, www.kave.fi  All right reserved.
 
 Author: Timo Lappalainen
 
