@@ -27,9 +27,18 @@ libraries, I implemented his code directly to the NMEA2000_esp32 to avoid extra
 can.h library, which may cause even naming problem.
 */
 
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+// enable support for ESP-IDF v5.0+
+#include "esp_private/periph_ctrl.h"
+#else
 #include "driver/periph_ctrl.h"
+#endif
 
+#include "rom/gpio.h"
+#include "soc/gpio_sig_map.h"
 #include "soc/dport_reg.h"
+#include "soc/dport_access.h"
 #include "NMEA2000_esp32.h"
 
 #if !defined(round)
@@ -44,7 +53,7 @@ void ESP32Can1Interrupt(void *);
 //*****************************************************************************
 tNMEA2000_esp32::tNMEA2000_esp32(gpio_num_t _TxPin,  gpio_num_t _RxPin) :
     tNMEA2000(), IsOpen(false),
-    speed(CAN_SPEED_250KBPS), TxPin(_TxPin), RxPin(_RxPin),
+                                                                         speed(CAN_SPEED_250KBPS), TxPin(_TxPin), RxPin(_RxPin),
     RxQueue(NULL), TxQueue(NULL) {
 }
 
@@ -77,7 +86,7 @@ void tNMEA2000_esp32::InitCANFrameBuffers() {
     RxQueue=xQueueCreate(MaxCANReceiveFrames,sizeof(tCANFrame));
     TxQueue=xQueueCreate(CANGlobalBufSize,sizeof(tCANFrame));
 
-    tNMEA2000::InitCANFrameBuffers(); // call main initialization
+  tNMEA2000::InitCANFrameBuffers(); // call main initialization
 }
 
 //*****************************************************************************
@@ -88,11 +97,11 @@ bool tNMEA2000_esp32::CANOpen() {
 
     pNMEA2000_esp32=this;
     IsOpen=true;
-    CAN_init();
+  CAN_init();
 
     CanInUse=IsOpen;
 
-    return IsOpen;
+  return IsOpen;
 }
 
 //*****************************************************************************
@@ -106,31 +115,29 @@ bool tNMEA2000_esp32::CANGetFrame(unsigned long &id, unsigned char &len, unsigne
       id=frame.id;
       len=frame.len;
       memcpy(buf,frame.buf,frame.len);
-    }
+  }
 
-    return HasFrame;
+  return HasFrame;
 }
 
 //*****************************************************************************
 void tNMEA2000_esp32::CAN_init() {
 
 	//Time quantum
-	double __tq;
+  double __tq;
 
+  // A soft reset of the ESP32 leaves it's CAN/TWAI controller in an undefined state so a reset is needed.
+  // Reset CAN/TWAI controller to same state as it would be in after a power down reset.
+  periph_module_reset(PERIPH_TWAI_MODULE);
 
-  // A soft reset of the ESP32 leaves it's CAN controller in an undefined state so a reset is needed.
-  // Reset CAN controller to same state as it would be in after a power down reset.
-  periph_module_reset(PERIPH_CAN_MODULE);
+  // enable module
+  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_TWAI_CLK_EN);
+  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_TWAI_RST);
 
-
-    //enable module
-  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
-  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
-
-    //configure RX pin
-	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
-	gpio_matrix_in(RxPin,CAN_RX_IDX,0);
-	gpio_pad_select_gpio(RxPin);
+  // configure RX pin
+  gpio_set_direction(RxPin, GPIO_MODE_INPUT);
+  gpio_matrix_in(RxPin, TWAI_RX_IDX, 0);
+  gpio_pad_select_gpio(RxPin);
 
     //set to PELICAN mode
 	MODULE_CAN->CDR.B.CAN_M=0x1;
@@ -143,70 +150,70 @@ void tNMEA2000_esp32::CAN_init() {
 
 	//select time quantum and set TSEG1
 	switch (speed) {
-		case CAN_SPEED_1000KBPS:
+  case CAN_SPEED_1000KBPS:
 			MODULE_CAN->BTR1.B.TSEG1	=0x4;
-			__tq = 0.125;
-			break;
+    __tq = 0.125;
+    break;
 
-		case CAN_SPEED_800KBPS:
+  case CAN_SPEED_800KBPS:
 			MODULE_CAN->BTR1.B.TSEG1	=0x6;
-			__tq = 0.125;
-			break;
-		default:
-			MODULE_CAN->BTR1.B.TSEG1	=0xc;
-			__tq = ((float)1000/speed) / 16;
-	}
+    __tq = 0.125;
+    break;
+  default:
+    MODULE_CAN->BTR1.B.TSEG1	=0xc;
+    __tq = ((float)1000 / (float)speed) / 16;
+  }
 
 	//set baud rate prescaler
 	MODULE_CAN->BTR0.B.BRP=(uint8_t)round((((APB_CLK_FREQ * __tq) / 2) - 1)/1000000)-1;
 
-    /* Set sampling
-     * 1 -> triple; the bus is sampled three times; recommended for low/medium speed buses     (class A and B) where filtering spikes on the bus line is beneficial
-     * 0 -> single; the bus is sampled once; recommended for high speed buses (SAE class C)*/
+  /* Set sampling
+   * 1 -> triple; the bus is sampled three times; recommended for low/medium speed buses     (class A and B) where filtering spikes on the bus line is beneficial
+   * 0 -> single; the bus is sampled once; recommended for high speed buses (SAE class C)*/
     MODULE_CAN->BTR1.B.SAM	=0x1;
 
     //enable all interrupts
     MODULE_CAN->IER.U = 0xef;  // bit 0x10 contains Baud Rate Prescaler Divider (BRP_DIV) bit
 
     //no acceptance filtering, as we want to fetch all messages
-    MODULE_CAN->MBX_CTRL.ACC.CODE[0] = 0;
-    MODULE_CAN->MBX_CTRL.ACC.CODE[1] = 0;
-    MODULE_CAN->MBX_CTRL.ACC.CODE[2] = 0;
-    MODULE_CAN->MBX_CTRL.ACC.CODE[3] = 0;
-    MODULE_CAN->MBX_CTRL.ACC.MASK[0] = 0xff;
-    MODULE_CAN->MBX_CTRL.ACC.MASK[1] = 0xff;
-    MODULE_CAN->MBX_CTRL.ACC.MASK[2] = 0xff;
-    MODULE_CAN->MBX_CTRL.ACC.MASK[3] = 0xff;
+  MODULE_CAN->MBX_CTRL.ACC.CODE[0] = 0;
+  MODULE_CAN->MBX_CTRL.ACC.CODE[1] = 0;
+  MODULE_CAN->MBX_CTRL.ACC.CODE[2] = 0;
+  MODULE_CAN->MBX_CTRL.ACC.CODE[3] = 0;
+  MODULE_CAN->MBX_CTRL.ACC.MASK[0] = 0xff;
+  MODULE_CAN->MBX_CTRL.ACC.MASK[1] = 0xff;
+  MODULE_CAN->MBX_CTRL.ACC.MASK[2] = 0xff;
+  MODULE_CAN->MBX_CTRL.ACC.MASK[3] = 0xff;
 
     //set to normal mode
     MODULE_CAN->OCR.B.OCMODE=__CAN_OC_NOM;
 
     //clear error counters
-    MODULE_CAN->TXERR.U = 0;
-    MODULE_CAN->RXERR.U = 0;
-    (void)MODULE_CAN->ECC;
+  MODULE_CAN->TXERR.U = 0;
+  MODULE_CAN->RXERR.U = 0;
+  (void)MODULE_CAN->ECC;
 
     //clear interrupt flags
-    (void)MODULE_CAN->IR.U;
+  (void)MODULE_CAN->IR.U;
 
-    //install CAN ISR
-    esp_intr_alloc(ETS_CAN_INTR_SOURCE,0,ESP32Can1Interrupt,NULL,NULL);
+  //install CAN ISR
+  esp_intr_alloc(ETS_TWAI_INTR_SOURCE, 0, ESP32Can1Interrupt, NULL, NULL);
 
-    //configure TX pin
-    // We do late configure, since some initialization above caused CAN Tx flash
-    // shortly causing one error frame on startup. By setting CAN pin here
-    // it works right.
-    gpio_set_direction(TxPin,GPIO_MODE_OUTPUT);
-    gpio_matrix_out(TxPin,CAN_TX_IDX,0,0);
-    gpio_pad_select_gpio(TxPin);
+  //configure TX pin
+  // We do late configure, since some initialization above caused CAN Tx flash
+  // shortly causing one error frame on startup. By setting CAN pin here
+  // it works right.
+  gpio_set_direction(TxPin, GPIO_MODE_OUTPUT);
+  gpio_matrix_out(TxPin, TWAI_TX_IDX, 0, 0);
+  gpio_pad_select_gpio(TxPin);
 
     //Showtime. Release Reset Mode.
-    MODULE_CAN->MOD.B.RM = 0;
+  MODULE_CAN->MOD.B.RM = 0;
 }
 
 //*****************************************************************************
 void tNMEA2000_esp32::CAN_read_frame() {
-	tCANFrame frame;
+  tCANFrame frame;
   CAN_FIR_t FIR;
 
 	//get FIR
@@ -257,25 +264,25 @@ void tNMEA2000_esp32::CAN_send_frame(tCANFrame &frame) {
 //*****************************************************************************
 void tNMEA2000_esp32::InterruptHandler() {
 	//Interrupt flag buffer
-	uint32_t interrupt;
+  uint32_t interrupt;
 
-    // Read interrupt status and clear flags
-    interrupt = (MODULE_CAN->IR.U & 0xff);
+  // Read interrupt status and clear flags
+  interrupt = (MODULE_CAN->IR.U & 0xff);
 
-    // Handle TX complete interrupt
+  // Handle TX complete interrupt
     if ((interrupt & __CAN_IRQ_TX) != 0) {
-      tCANFrame frame;
+    tCANFrame frame;
       if ( (xQueueReceiveFromISR(TxQueue,&frame,NULL)==pdTRUE) ) {
-        CAN_send_frame(frame);
-      }
+      CAN_send_frame(frame);
     }
+  }
 
-    // Handle RX frame available interrupt
+  // Handle RX frame available interrupt
     if ((interrupt & __CAN_IRQ_RX) != 0) {
-    	CAN_read_frame();
-    }
+    CAN_read_frame();
+  }
 
-    // Handle error interrupts.
+  // Handle error interrupts.
     if ((interrupt & (__CAN_IRQ_ERR						//0x4
                       | __CAN_IRQ_DATA_OVERRUN			//0x8
                       | __CAN_IRQ_WAKEUP				//0x10
@@ -283,8 +290,8 @@ void tNMEA2000_esp32::InterruptHandler() {
                       | __CAN_IRQ_ARB_LOST				//0x40
                       | __CAN_IRQ_BUS_ERR				//0x80
         )) != 0) {
-    	/*handler*/
-    }
+    /*handler*/
+  }
 }
 
 //*****************************************************************************
