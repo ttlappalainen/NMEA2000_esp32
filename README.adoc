@@ -13,6 +13,23 @@ change these with defines:
 
 before including NMEA2000_CAN.h or NMEA2000_esp32.h
 
+== Compatibility ==
+
+This library has been tested for compatibility with these targets and build environments:
+
+[cols="2,1,1,1,1,1"]
+|===
+|Support |ESP32 |ESP32-C2 |ESP32-C3 |ESP32-S2 |ESP32-S3
+
+|Arduino-ESP32 v1 (IDF 3.x) | ? |?|?|?|?
+|Arduino-ESP32 v2 (IDF 4.x)| ? |?|?|?|?
+|ESP-IDF 3.x |?|?|?|?|?
+|ESP-IDF 4.x | ✔ |?|?|?|?
+|ESP-IDF 5.x | ✔ |?|?|?|?
+|===
+
+(PlatformIO is supported but isn't included in this table because it can be configured to use either Arduino-ESP32 or ESP-IDF)
+
 == Thanks ==
 
 Thanks to Thomas Barth, barth-dev.de for his implementation of
@@ -20,6 +37,9 @@ ESP32 CAN driver. Instead of using his driver as external driver
 I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 
 == Changes ==
+
+2023-05-23 - add ESP-IDF v5 support
+
 04.10.2022
 - Add ESP-IDF support
 

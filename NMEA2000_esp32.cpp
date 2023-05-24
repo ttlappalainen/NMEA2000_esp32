@@ -27,9 +27,18 @@ libraries, I implemented his code directly to the NMEA2000_esp32 to avoid extra
 can.h library, which may cause even naming problem.
 */
 
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+// enable support for ESP-IDF v5.0+
+#include "esp_private/periph_ctrl.h"
+#else
 #include "driver/periph_ctrl.h"
+#endif
 
+#include "rom/gpio.h"
+#include "soc/gpio_sig_map.h"
 #include "soc/dport_reg.h"
+#include "soc/dport_access.h"
 #include "NMEA2000_esp32.h"
 
 #if !defined(round)
@@ -118,18 +127,18 @@ void tNMEA2000_esp32::CAN_init() {
 	double __tq;
 
 
-  // A soft reset of the ESP32 leaves it's CAN controller in an undefined state so a reset is needed.
-  // Reset CAN controller to same state as it would be in after a power down reset.
-  periph_module_reset(PERIPH_CAN_MODULE);
+  // A soft reset of the ESP32 leaves it's CAN/TWAI controller in an undefined state so a reset is needed.
+  // Reset CAN/TWAI controller to same state as it would be in after a power down reset.
+  periph_module_reset(PERIPH_TWAI_MODULE);
 
 
     //enable module
-  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
-  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
+  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_TWAI_CLK_EN);
+  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_TWAI_RST);
 
     //configure RX pin
 	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
-	gpio_matrix_in(RxPin,CAN_RX_IDX,0);
+	gpio_matrix_in(RxPin,TWAI_RX_IDX,0);
 	gpio_pad_select_gpio(RxPin);
 
     //set to PELICAN mode
@@ -154,7 +163,7 @@ void tNMEA2000_esp32::CAN_init() {
 			break;
 		default:
 			MODULE_CAN->BTR1.B.TSEG1	=0xc;
-			__tq = ((float)1000/speed) / 16;
+			__tq = ((float)1000 / (float)speed) / 16;
 	}
 
 	//set baud rate prescaler
@@ -190,14 +199,14 @@ void tNMEA2000_esp32::CAN_init() {
     (void)MODULE_CAN->IR.U;
 
     //install CAN ISR
-    esp_intr_alloc(ETS_CAN_INTR_SOURCE,0,ESP32Can1Interrupt,NULL,NULL);
+    esp_intr_alloc(ETS_TWAI_INTR_SOURCE,0,ESP32Can1Interrupt,NULL,NULL);
 
     //configure TX pin
     // We do late configure, since some initialization above caused CAN Tx flash
     // shortly causing one error frame on startup. By setting CAN pin here
     // it works right.
     gpio_set_direction(TxPin,GPIO_MODE_OUTPUT);
-    gpio_matrix_out(TxPin,CAN_TX_IDX,0,0);
+    gpio_matrix_out(TxPin,TWAI_TX_IDX,0,0);
     gpio_pad_select_gpio(TxPin);
 
     //Showtime. Release Reset Mode.
