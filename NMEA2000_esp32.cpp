@@ -1,7 +1,7 @@
 /*
 NMEA2000_esp32.cpp
 
-Copyright (c) 2015-2020 Timo Lappalainen, Kave Oy, www.kave.fi
+Copyright (c) 2015-2023 Timo Lappalainen, Kave Oy, www.kave.fi
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,9 +30,9 @@ can.h library, which may cause even naming problem.
 #include "esp_idf_version.h"
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 // enable support for ESP-IDF v5.0+
-#include "esp_private/periph_ctrl.h"
+  #include "esp_private/periph_ctrl.h"
 #else
-#include "driver/periph_ctrl.h"
+  #include "driver/periph_ctrl.h"
 #endif
 
 #include "rom/gpio.h"
@@ -42,7 +42,15 @@ can.h library, which may cause even naming problem.
 #include "NMEA2000_esp32.h"
 
 #if !defined(round)
-#include <math.h>
+  #include <math.h>
+#endif
+
+#ifndef PERIPH_CAN_MODULE
+  #define PERIPH_CAN_MODULE PERIPH_TWAI_MODULE
+  #define DPORT_CAN_CLK_EN DPORT_TWAI_CLK_EN
+  #define DPORT_CAN_RST DPORT_TWAI_RST
+  #define CAN_RX_IDX TWAI_RX_IDX
+  #define CAN_TX_IDX TWAI_TX_IDX
 #endif
 
 bool tNMEA2000_esp32::CanInUse=false;
@@ -127,18 +135,18 @@ void tNMEA2000_esp32::CAN_init() {
 	double __tq;
 
 
-  // A soft reset of the ESP32 leaves it's CAN/TWAI controller in an undefined state so a reset is needed.
-  // Reset CAN/TWAI controller to same state as it would be in after a power down reset.
-  periph_module_reset(PERIPH_TWAI_MODULE);
+  // A soft reset of the ESP32 leaves it's CAN controller in an undefined state so a reset is needed.
+  // Reset CAN controller to same state as it would be in after a power down reset.
+  periph_module_reset(PERIPH_CAN_MODULE);
 
 
     //enable module
-  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_TWAI_CLK_EN);
-  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_TWAI_RST);
+  DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
+  DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
 
     //configure RX pin
 	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
-	gpio_matrix_in(RxPin,TWAI_RX_IDX,0);
+	gpio_matrix_in(RxPin,CAN_RX_IDX,0);
 	gpio_pad_select_gpio(RxPin);
 
     //set to PELICAN mode
@@ -199,14 +207,14 @@ void tNMEA2000_esp32::CAN_init() {
     (void)MODULE_CAN->IR.U;
 
     //install CAN ISR
-    esp_intr_alloc(ETS_TWAI_INTR_SOURCE,0,ESP32Can1Interrupt,NULL,NULL);
+    esp_intr_alloc(ETS_CAN_INTR_SOURCE,0,ESP32Can1Interrupt,NULL,NULL);
 
     //configure TX pin
     // We do late configure, since some initialization above caused CAN Tx flash
     // shortly causing one error frame on startup. By setting CAN pin here
     // it works right.
     gpio_set_direction(TxPin,GPIO_MODE_OUTPUT);
-    gpio_matrix_out(TxPin,TWAI_TX_IDX,0,0);
+    gpio_matrix_out(TxPin,CAN_TX_IDX,0,0);
     gpio_pad_select_gpio(TxPin);
 
     //Showtime. Release Reset Mode.

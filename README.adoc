@@ -60,7 +60,7 @@ I implemented the code to the NMEA2000_esp32 to avoid conflicts.
 == License ==
 
 
-2015-2022 Copyright (c) Kave Oy, www.kave.fi  All right reserved.
+2015-2023 Copyright (c) Kave Oy, www.kave.fi  All right reserved.
 
 Author: Timo Lappalainen
 
