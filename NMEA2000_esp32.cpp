@@ -45,7 +45,8 @@ can.h library, which may cause even naming problem.
   #include <math.h>
 #endif
 
-#ifndef PERIPH_CAN_MODULE
+// ESP-IDF renamed some defines.  Can't use #ifndef because some of these are enums
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #define PERIPH_CAN_MODULE PERIPH_TWAI_MODULE
   #define DPORT_CAN_CLK_EN DPORT_TWAI_CLK_EN
   #define DPORT_CAN_RST DPORT_TWAI_RST
