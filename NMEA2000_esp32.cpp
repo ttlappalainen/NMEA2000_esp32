@@ -118,7 +118,15 @@ void tNMEA2000_esp32::CAN_init() {
 	//Time quantum
 	double __tq;
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  // A soft reset of the ESP32 leaves it's CAN controller in an undefined state so a reset is needed.
+  // Reset CAN controller to same state as it would be in after a power down reset.
+  periph_module_reset(PERIPH_TWAI_MODULE);
 
+
+    //enable module
+  periph_module_enable(PERIPH_TWAI_MODULE);
+#else
   // A soft reset of the ESP32 leaves it's CAN controller in an undefined state so a reset is needed.
   // Reset CAN controller to same state as it would be in after a power down reset.
   periph_module_reset(PERIPH_CAN_MODULE);
@@ -127,14 +135,21 @@ void tNMEA2000_esp32::CAN_init() {
     //enable module
   DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
   DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
+#endif
 
     //configure RX pin
 	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+	gpio_matrix_in(RxPin,TWAI_RX_IDX,0);
+#else
 	gpio_matrix_in(RxPin,CAN_RX_IDX,0);
+#endif
 	gpio_pad_select_gpio(RxPin);
 
+#ifndef CONFIG_IDF_TARGET_ESP32S3
     //set to PELICAN mode
 	MODULE_CAN->CDR.B.CAN_M=0x1;
+#endif
 
 	//synchronization jump width is the same for all baud rates
 	MODULE_CAN->BTR0.B.SJW		=0x1;
@@ -191,14 +206,22 @@ void tNMEA2000_esp32::CAN_init() {
     (void)MODULE_CAN->IR.U;
 
     //install CAN ISR
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+    esp_intr_alloc(ETS_TWAI_INTR_SOURCE,0,ESP32Can1Interrupt,NULL,NULL);
+#else
     esp_intr_alloc(ETS_CAN_INTR_SOURCE,0,ESP32Can1Interrupt,NULL,NULL);
+#endif
 
     //configure TX pin
     // We do late configure, since some initialization above caused CAN Tx flash
     // shortly causing one error frame on startup. By setting CAN pin here
     // it works right.
     gpio_set_direction(TxPin,GPIO_MODE_OUTPUT);
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+    gpio_matrix_out(TxPin,TWAI_TX_IDX,0,0);
+#else
     gpio_matrix_out(TxPin,CAN_TX_IDX,0,0);
+#endif
     gpio_pad_select_gpio(TxPin);
 
     //Showtime. Release Reset Mode.
@@ -279,10 +302,15 @@ void tNMEA2000_esp32::InterruptHandler() {
     // Handle error interrupts.
     if ((interrupt & (__CAN_IRQ_ERR						//0x4
                       | __CAN_IRQ_DATA_OVERRUN			//0x8
+#ifndef CONFIG_IDF_TARGET_ESP32S3
                       | __CAN_IRQ_WAKEUP				//0x10
+#endif
                       | __CAN_IRQ_ERR_PASSIVE			//0x20
                       | __CAN_IRQ_ARB_LOST				//0x40
                       | __CAN_IRQ_BUS_ERR				//0x80
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+                      | __CAN_IRQ_MS_ERR 				//0x100
+#endif
         )) != 0) {
     	/*handler*/
     }

@@ -36,12 +36,19 @@ before including NMEA2000_esp32.h or NMEA2000_CAN.h
 #ifndef _NMEA2000_ESP32_H_
 #define _NMEA2000_ESP32_H_
 
+#if ARDUINO >= 100
+#include <Arduino.h>
+#endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "driver/gpio.h"
 #include "NMEA2000.h"
 #include "N2kMsg.h"
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#include "ESP32S3_CAN_def.h"
+#else
 #include "ESP32_CAN_def.h"
+#endif
 
 #ifndef ESP32_CAN_TX_PIN
 #define ESP32_CAN_TX_PIN GPIO_NUM_16
