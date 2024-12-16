@@ -129,10 +129,15 @@ void tNMEA2000_esp32::CAN_init() {
   DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
 
     //configure RX pin
-	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
+    	gpio_set_direction(RxPin,GPIO_MODE_INPUT);
+
+#if (ESP_IDF_VERSION_MAJOR >= 5)
+    	esp_rom_gpio_connect_in_signal(RxPin,CAN_RX_IDX,0);
+    	esp_rom_gpio_pad_select_gpio(RxPin);
+#else
 	gpio_matrix_in(RxPin,CAN_RX_IDX,0);
 	gpio_pad_select_gpio(RxPin);
-
+#endif
     //set to PELICAN mode
 	MODULE_CAN->CDR.B.CAN_M=0x1;
 
@@ -198,8 +203,14 @@ void tNMEA2000_esp32::CAN_init() {
     // shortly causing one error frame on startup. By setting CAN pin here
     // it works right.
     gpio_set_direction(TxPin,GPIO_MODE_OUTPUT);
+
+#if (ESP_IDF_VERSION_MAJOR >= 5)
+    esp_rom_gpio_connect_out_signal(TxPin,CAN_TX_IDX,0,0);
+    esp_rom_gpio_pad_select_gpio(TxPin);
+#else
     gpio_matrix_out(TxPin,CAN_TX_IDX,0,0);
     gpio_pad_select_gpio(TxPin);
+#endif
 
     //Showtime. Release Reset Mode.
     MODULE_CAN->MOD.B.RM = 0;
